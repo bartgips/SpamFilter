@@ -1,8 +1,9 @@
-import email, os, nltk
+import email, os, nltk, re
 import pandas as pd
 import numpy as np
 
 direc = './Data/Spam/BG/2004'
+direc = './Data/Ham/beck-s/'
 df=loadMail2df(direc)
 #df.to_csv('test.csv',index=False)
 
@@ -33,7 +34,6 @@ def loadMail2df(direc):
     return df
 
 def readBody(emsg):
-    replaceList=['\n']
     if emsg.is_multipart():        
         txt=''
         for payload in emsg.get_payload(): # loop over parts of e-mail
@@ -43,9 +43,23 @@ def readBody(emsg):
     if isinstance(txt,list):
         ''.join(txt)
         
-#                # TODO filter out html and other nuisance text
-#                for replace in replaceList:
-#                    txt.replace(replace,' ')
+    txt=txt.lower() # make all text lower case
+    # TODO maybe keep track of ratio of uppercase/lowercase as useful feature
+    
+    #filter out html and other nuisance text
+    # TODO maybe find a proper way to extract text from html (parse)
+    replaceList=['\n', '<head.+>','<body.+>','<title.+>','<div.+>','<\.+>','<!doctype.+>']
+    for replace in replaceList:
+        txt=re.sub(replace,'',txt)
+    
+    txt=nltk.word_tokenize(txt)
+    for ix in range(len(txt)):
+        word = txt[ix]
+        if len(word)>45: # longest word in dictionary (see https://en.wikipedia.org/wiki/Longest_word_in_English)
+            txt[ix]='WORD_TOO_LONG'
+    
+            
+    
     return txt
 
   # %% 
