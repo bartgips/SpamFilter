@@ -2,17 +2,16 @@ import email, os, nltk
 import pandas as pd
 import numpy as np
 
-direc = './Data/Spam'
+direc = './Data/Spam/BG/2004'
 df=loadMail2df(direc)
 #df.to_csv('test.csv',index=False)
 
-df=pd.read_csv('test.csv')
+#df=pd.read_csv('test.csv')
 
 
 # %%
 def loadMail2df(direc):
     #direc = './Data/Ham/beck-s/'
-    replaceList=['\n']
     cols=['sub','txt']
     df=pd.DataFrame(columns=cols)
     for (dirpath, dirnames, filenames) in os.walk(direc):
@@ -28,22 +27,26 @@ def loadMail2df(direc):
             if readCorrectly:
                 dat={}
                 dat['sub']=emsg['Subject']
-#                if emsg.is_multipart():
-#                    print(fpath)
-#                    break
-#                    txt=[]
-#                    for payload in emsg.get_payload(): # loop over parts of e-mail
-#                        txt.extend(payload.get_payload());                    
-#                else:
-                txt=emsg.get_payload()
-                    
-#                # TODO filter out html and other nuisance text
-#                for replace in replaceList:
-#                    txt.replace(replace,' ')
-                    
+                txt=readBody(emsg)    
                 dat['txt']=txt
                 df=df.append(dat,ignore_index=True)
     return df
+
+def readBody(emsg):
+    replaceList=['\n']
+    if emsg.is_multipart():        
+        txt=''
+        for payload in emsg.get_payload(): # loop over parts of e-mail
+            txt=txt+ readBody(payload);                    
+    else:
+        txt=emsg.get_payload()
+    if isinstance(txt,list):
+        ''.join(txt)
+        
+#                # TODO filter out html and other nuisance text
+#                for replace in replaceList:
+#                    txt.replace(replace,' ')
+    return txt
 
   # %% 
 def genVocab(df, maxWords=1000):
