@@ -5,9 +5,12 @@ import numpy as np
 direc = './Data/Spam/BG/2004'
 direc = './Data/Ham/beck-s/'
 df=loadMail2df(direc)
-#df.to_csv('test.csv',index=False)
 
-#df=pd.read_csv('test.csv')
+
+
+df.to_csv('test.csv',index=False)
+
+df=pd.read_csv('test.csv')
 
 
 # %%
@@ -27,7 +30,15 @@ def loadMail2df(direc):
             fid.close()
             if readCorrectly:
                 dat={}
-                dat['sub']=emsg['Subject']
+                subDum=emsg['Subject']
+                subDum=subDum.lower() #make text lower case
+                subDum=re.sub('-',' ',subDum) #change hyphens to spaces
+                
+                replaceList= ['\n'] #keep punctuation in for nltk.word_tokenize
+                for replace in replaceList:
+                    subDum=re.sub(replace,'',subDum)
+                subDum=nltk.word_tokenize(subDum)
+                dat['sub']=subDum
                 txt=readBody(emsg)    
                 dat['txt']=txt
                 df=df.append(dat,ignore_index=True)
@@ -46,19 +57,21 @@ def readBody(emsg):
     txt=txt.lower() # make all text lower case
     # TODO maybe keep track of ratio of uppercase/lowercase as useful feature
     
+    txt=re.sub('-',' ',txt) # change hyphens to spaces
+    
     #filter out html and other nuisance text
     # TODO maybe find a proper way to extract text from html (parse)
-    replaceList=['\n', '<head.+>','<body.+>','<title.+>','<div.+>','<\.+>','<!doctype.+>']
+    replaceList=['\n', '<head.+>','<body.+>','<title.+>','<div.+>','<\.+>','<!doctype.+>','[?!.,:;\'\"]']
     for replace in replaceList:
         txt=re.sub(replace,'',txt)
     
-    txt=nltk.word_tokenize(txt)
-    for ix in range(len(txt)):
-        word = txt[ix]
+    txt=txt.split(' ')#nltk.word_tokenize(txt)
+    for ix in range(len(txt),0,-1):
+        word = txt[ix-1]
         if len(word)>45: # longest word in dictionary (see https://en.wikipedia.org/wiki/Longest_word_in_English)
-            txt[ix]='WORD_TOO_LONG'
-    
-            
+            txt[ix-1]='WORD_TOO_LONG'
+        elif len(word)<2: # remove single characters ('a', or floating punctuation)
+            txt.pop(ix-1)
     
     return txt
 
@@ -67,12 +80,17 @@ def genVocab(df, maxWords=1000):
     ndim=df.ndim
     word2index=[]
     for ix in range(ndim):
+#        tkn=[]
+#        lst=df.ix[:,ix].tolist()
+#        for txt in lst:
+#            if pd.notnull(txt):
+#                tkn.extend(nltk.word_tokenize(txt.lower())) # note text is forced to be lower case
+        
+        # concantenate all words
         tkn=[]
         lst=df.ix[:,ix].tolist()
         for txt in lst:
-            if pd.notnull(txt):
-                tkn.extend(nltk.word_tokenize(txt.lower())) # note text is forced to be lower case
-        
+            tkn.extend(txt)
         # count word frequencies
         wordFreq= nltk.FreqDist(tkn)
         
