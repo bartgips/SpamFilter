@@ -2,15 +2,17 @@ import email, os, nltk, re
 import pandas as pd
 import numpy as np
 
-direc = './Data/Spam/BG/2004'
-direc = './Data/Ham/beck-s/'
-df=loadMail2df(direc)
+spamdirec = './Data/Spam/'
+hamdirec = './Data/Ham/beck-s/'
+dfSpam=loadMail2df(spamdirec)
+dfHam=loadMail2df(hamdirec)
 
 
 
-df.to_csv('test.csv',index=False)
 
-df=pd.read_csv('test.csv')
+#df.to_csv('test.csv',index=False)
+
+#df=pd.read_csv('test.csv')
 
 
 # %%
@@ -31,14 +33,17 @@ def loadMail2df(direc):
             if readCorrectly:
                 dat={}
                 subDum=emsg['Subject']
-                subDum=subDum.lower() #make text lower case
-                subDum=re.sub('-',' ',subDum) #change hyphens to spaces
-                
-                replaceList= ['\n'] #keep punctuation in for nltk.word_tokenize
-                for replace in replaceList:
-                    subDum=re.sub(replace,'',subDum)
-                subDum=nltk.word_tokenize(subDum)
-                dat['sub']=subDum
+                if not subDum is None:
+                    subDum=subDum.lower() #make text lower case
+                    subDum=re.sub('-',' ',subDum) #change hyphens to spaces
+                    
+                    replaceList= ['\n'] #keep punctuation in for nltk.word_tokenize
+                    for replace in replaceList:
+                        subDum=re.sub(replace,'',subDum)
+                    subDum=nltk.word_tokenize(subDum)
+                    dat['sub']=subDum
+                else:
+                    dat['sub']=' '
                 txt=readBody(emsg)    
                 dat['txt']=txt
                 df=df.append(dat,ignore_index=True)
@@ -48,7 +53,7 @@ def readBody(emsg):
     if emsg.is_multipart():        
         txt=''
         for payload in emsg.get_payload(): # loop over parts of e-mail
-            txt=txt+ readBody(payload);                    
+            txt=txt+ ''.join(readBody(payload));                    
     else:
         txt=emsg.get_payload()
     if isinstance(txt,list):
@@ -108,17 +113,18 @@ def tokenizeDF(df,word2index):
         for ix in range(len(df)):
             txt=df.iloc[ix][field]
             print([ix, field])
-            if pd.isnull(txt):
+            if all(pd.isnull(txt)):
                 ndf.iloc[ix][field]=np.nan
             else:
-                txt=str(txt)
-                txt=nltk.word_tokenize(txt.lower())
-                nlist=list()
+                N=len(word2index[field])
+                nlist=np.zeros((N+2,1)) # one entry for all words in dictionary, one for unknown words, one for total number of words
                 for wrd in txt:
                     if wrd in word2index[field]:
-                        nlist.append(word2index[field][wrd])
+                        nlist[word2index[field][wrd]]=nlist[word2index[field][wrd]]+1
                     else:
-                        nlist.append(len(word2index[field])+1) # unknown words get "unknown" value (=N+1)
+                        nlist[N]=nlist[N]+1 # unknown words get "unknown" value (=N+1)
+                nlist=nlist/len(txt)
+                nlist[N+1]=len(txt)
                 ndf.iloc[ix][field]=nlist
     return ndf
                     
