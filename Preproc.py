@@ -30,7 +30,7 @@ with open('./Data/dictionary.json','w') as fp:
 
 
 # %%
-dfSpamV=txt2vec(dfSpam,dictionary)
+dfSpamV=txt2vecDF(dfSpam,dictionary)
 dfHamV=txt2vecDF(dfHam,dictionary)
 
 dfSpamV.to_json('./Data/Spam_Vec.json')
@@ -157,25 +157,51 @@ def txt2vecDF(df,word2index):
     ndim=df.ndim
     ndf=pd.DataFrame(None)
     for field in range(ndim):
-        cols=list(word2index[field].keys()) + ['_unknown','_txtLen']
+        cols=[str(field).zfill(3) +'_' + s for s in list(word2index[field].keys()) + ['_unknown','_txtLen']]
         dumdf=pd.DataFrame(columns=cols)
         for txt in df.iloc[:,field]: # consider backwards looping over indices to pre-allocate memory for full DF
             if len(txt)<1: # fill with zeros
                 dumdf=dumdf.append(pd.DataFrame(0, index = [0],columns=cols))
             else:
                 Nbin=len(word2index[field])
-                nlist=np.zeros((N+2,1))
+                nlist=np.zeros((Nbin+2,1))
                 for wrd in txt:
                     if wrd in word2index[field]:
                         nlist[word2index[field][wrd]]=nlist[word2index[field][wrd]]+1
                     else:
-                        nlist[N]=nlist[N]+1 # unknown words get "unknown" value (=N+1)
+                        nlist[Nbin]=nlist[Nbin]+1 # unknown words get "unknown" value (=N+1)
                 nlist=nlist/len(txt)
-                nlist[N+1]=len(txt)
+                nlist[Nbin+1]=len(txt)
                 dumdf=dumdf.append(pd.DataFrame(nlist.transpose(),index=[0],columns=cols))
         ndf=pd.concat([ndf,dumdf],axis=1)
+    ndf=ndf.reset_index()
     return ndf
     
+
+def txt2vecDF2(df,word2index):
+    ndim=df.ndim
+    ndf=pd.DataFrame(None)
+    for field in range(ndim):
+        cols=[str(field).zfill(3) +'_' + s for s in list(word2index[field].keys()) + ['_unknown','_txtLen']]
+        dumdf=pd.DataFrame(None,index = range(len(df)), columns=cols)
+        for ix in range(len(df),0,-1):
+            txt=df.iloc[ix-1][field]
+            if len(txt)<1: # fill with zeros
+                dumdf.loc[ix-1,:]=0
+            else:
+                Nbin=len(word2index[field])
+                nlist=np.zeros((Nbin+2,1))
+                for wrd in txt:
+                    if wrd in word2index[field]:
+                        nlist[word2index[field][wrd]]=nlist[word2index[field][wrd]]+1
+                    else:
+                        nlist[Nbin]=nlist[Nbin]+1 # unknown words get "unknown" value (=N+1)
+                nlist=nlist/len(txt)
+                nlist[Nbin+1]=len(txt)
+                dumdf.loc[ix-1,:]=nlist.transpose()
+        ndf=pd.concat([ndf,dumdf],axis=1)
+#    ndf=ndf.reset_index()
+    return ndf
         
         
                     
