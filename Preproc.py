@@ -1,28 +1,54 @@
 import email, os, nltk, re, json
 import pandas as pd
 import numpy as np
+from sklearn.model_selection import train_test_split
+from math import *
 
 spamdirec = './Data/Spam/'
 hamdirec = './Data/Ham/'
 
 # %% load data and preprocess to words
-dfSpam=loadMail2df(spamdirec)
-dfHam=loadMail2df(hamdirec)
+#dfSpam=loadMail2df(spamdirec)
+#dfHam=loadMail2df(hamdirec)
 
-#dfSpam.to_csv('./Data/Spam_txt.csv',index=False)
-dfSpam.to_json('./Data/Spam_txt_more.json')
-dfHam.to_json('./Data/Ham_txt_more.json')
+#dfSpam.to_json('./Data/Spam_txt_more.json')
+#dfHam.to_json('./Data/Ham_txt_more.json')
 
 
 ## to load:
-#dfSpam=pd.read_json('./Data/Spam_txt.json')
-#dfHam=pd.read_json('./Data/Ham_txt.json')
+dfSpam=pd.read_json('./Data/Spam_txt.json')
+dfHam=pd.read_json('./Data/Ham_txt.json')
+
+#split into train and test data after scrambling
+dfSpam=dfSpam.sample(frac=1).reset_index(drop=True)
+dfHam=dfHam.sample(frac=1).reset_index(drop=True)
+
+#splitRatio=10
+#dfHam_test=dfHam.iloc[:int(floor(len(dfHam)/splitRatio)),:]
+#dfHam=dfHam.iloc[int(floor(len(dfHam)/splitRatio)):,:]
+#
+#dfSpam_test=dfSpam.iloc[:int(floor(len(dfSpam)/splitRatio)),:]
+#dfSpam=Spam.iloc[int(floor(len(dfSpam)/splitRatio)):,:]
+
+dfTot=pd.concat([dfSpam,dfHam]).reset_index(drop=True)
+Y=np.concatenate((np.ones(len(dfSpam)), np.zeros(len(dfHam))))
+Y=pd.DataFrame(Y,index=range(len(dfTot)),columns=['spamFlag'])
+dfTot=pd.concat([Y,dfTot],axis=1)
+
+dfTrain, dfTest, Ytrain, Ytest = train_test_split(dfTot,Y,test_size=0.1)
+
+
+from sklearn.externals import joblib
+joblib.dump([dfTrain, dfTest, Ytrain, Ytest],'./Data/preproc/traintest_txt.pkl')
+
+#loading 
+dfTrain, dfTest, Ytrain, Ytest=joblib.load('./Data/preproc/traintest_txt.pkl')
 
 # %%
 nWords=[500,1000] #smaller dictionay for subject
-dictionary=genVocab(pd.concat([dfSpam,dfHam]),nWords)
+dictionary=genVocab(dfTrain.iloc[:,1:],nWords)
 
-with open('./Data/dictionary_more.json','w') as fp:
+with open('./Data/preproc/dictionary.json','w') as fp:
     json.dump(dictionary, fp)
     
 ## to load:
@@ -31,23 +57,29 @@ with open('./Data/dictionary_more.json','w') as fp:
 
 
 # %%
+#
+#import time
+#t= time.time()
+#dfSpamV=txt2vecDF(dfSpam,dictionary)
+#elapsed1 = time.time() - t
+#
+#
+#dfHamV=txt2vecDF(dfHam,dictionary)
+#elapsed2 = time.time() - t - elapsed1
 
-import time
-t= time.time()
-dfSpamV=txt2vecDF(dfSpam,dictionary)
-elapsed1 = time.time() - t
-
-
-dfHamV=txt2vecDF(dfHam,dictionary)
-elapsed2 = time.time() - t - elapsed1
-
-
-
-# save
-dfSpamV.to_json('./Data/Spam_Vec_more.json')
-dfHamV.to_json('./Data/Ham_Vec_more.json')
+## save
+#dfSpamV.to_json('./Data/Spam_Vec_more.json')
+#dfHamV.to_json('./Data/Ham_Vec_more.json')
 
 
+dfTrainVec=pd.concat([Ytrain, txt2vecDF(dfTrain.iloc[:,1:],dictionary)],axis=1)
+dfTestVec=pd.concat([Ytest, txt2vecDF(dfTest.iloc[:,1:],dictionary)],axis=1)
+
+
+joblib.dump([dfTrainVec, dfTestVec, Ytrain, Ytest],'./Data/preproc/traintest_vec.pkl')
+
+#loading
+dfTrainVec, dfTestVec, Ytrain, Ytest = joblib.load('./Data/preproc/traintest_vec.pkl')
 
 
 
@@ -166,8 +198,10 @@ def txt2vec(df,word2index):
 def txt2vecDF(df,word2index):
     ndim=df.ndim
     ndf=pd.DataFrame(None)
-    for field in range(ndim):
-        cols=[str(field).zfill(3) +'_' + s for s in list(word2index[field].keys()) + ['_unknown','_txtLen']]
+    loopfields=range(ndim)
+    collabs=df.columns
+    for field in loopfields:
+        cols=[collabs[field] +' : ' + s for s in list(word2index[field].keys()) + ['_unknown','_txtLen']]
         dumdf=pd.DataFrame(columns=cols)
         for txt in df.iloc[:,field]: # consider backwards looping over indices to pre-allocate memory for full DF
             if len(txt)<1: # fill with zeros
@@ -186,6 +220,8 @@ def txt2vecDF(df,word2index):
         ndf=pd.concat([ndf,dumdf],axis=1)
     ndf=ndf.reset_index(drop=True)
     return ndf
+
+
     
 
 def txt2vecDF2(df,word2index):

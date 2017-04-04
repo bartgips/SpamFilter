@@ -87,7 +87,7 @@ plt.show(2)
 fig2.set_size_inches(10,5)
 plt.savefig('./figs/OOBperf_v_nTrees.pdf')
 
-from sklearn import joblib
+from sklearn.externals import joblib
 joblib.dump(forest,'./models/forest.pkl')
 
 # to load
