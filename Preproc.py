@@ -10,32 +10,42 @@ dfSpam=loadMail2df(spamdirec)
 dfHam=loadMail2df(hamdirec)
 
 #dfSpam.to_csv('./Data/Spam_txt.csv',index=False)
-dfSpam.to_json('./Data/Spam_txt.json')
-dfHam.to_json('./Data/Ham_txt.json')
+dfSpam.to_json('./Data/Spam_txt_more.json')
+dfHam.to_json('./Data/Ham_txt_more.json')
 
 
 ## to load:
 #dfSpam=pd.read_json('./Data/Spam_txt.json')
+#dfHam=pd.read_json('./Data/Ham_txt.json')
 
 # %%
 nWords=[500,1000] #smaller dictionay for subject
 dictionary=genVocab(pd.concat([dfSpam,dfHam]),nWords)
 
-with open('./Data/dictionary.json','w') as fp:
+with open('./Data/dictionary_more.json','w') as fp:
     json.dump(dictionary, fp)
     
 ## to load:
 #with open('./Data/dictionary.json','r') as fp:
-#    dictionary2= json.load(fp)
+#    dictionary= json.load(fp)
 
 
 # %%
+
+import time
+t= time.time()
 dfSpamV=txt2vecDF(dfSpam,dictionary)
+elapsed1 = time.time() - t
+
+
 dfHamV=txt2vecDF(dfHam,dictionary)
+elapsed2 = time.time() - t - elapsed1
 
-dfSpamV.to_json('./Data/Spam_Vec.json')
-dfHamV.to_json('./Data/Ham_Vec.json')
 
+
+# save
+dfSpamV.to_json('./Data/Spam_Vec_more.json')
+dfHamV.to_json('./Data/Ham_Vec_more.json')
 
 
 
@@ -109,7 +119,7 @@ def readBody(emsg):
     
     return txt
 
-  # %% 
+
 def genVocab(df, maxWords=1000):
     ndim=df.ndim
     word2index=[]
@@ -130,7 +140,7 @@ def genVocab(df, maxWords=1000):
         word2index.append( dict([(w,i) for i,w in enumerate(index2word)]))
         
     return word2index
-# %%
+
 def txt2vec(df,word2index):
     ndim=df.ndim
     ndf=df.copy()
@@ -174,7 +184,7 @@ def txt2vecDF(df,word2index):
                 nlist[Nbin+1]=len(txt)
                 dumdf=dumdf.append(pd.DataFrame(nlist.transpose(),index=[0],columns=cols))
         ndf=pd.concat([ndf,dumdf],axis=1)
-    ndf=ndf.reset_index()
+    ndf=ndf.reset_index(drop=True)
     return ndf
     
 
