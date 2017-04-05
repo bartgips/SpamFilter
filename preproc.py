@@ -1,18 +1,18 @@
-import email, os, nltk, re, json
+import os, nltk, re, json
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.externals import joblib
 from math import *
 
-    
-
-
 def main():
         # %% load data and preprocess to words
     savDir= input('Please input the Output directory (default=../output)\n:')
     if savDir=='':
         savDir='../output/'
+    
+    if not os.path.isdir(savDir):
+        os.mkdir(savDir)
     
     nWords=[input('how many words for the subject dictionary? (500)\n:')]
     nWords.append(input('how many words for the body text dictionary? (1000)\n:'))
@@ -25,7 +25,7 @@ def main():
     
     
     if os.path.isfile(os.path.join(savDir,'traintest_txt.pkl')):
-        query=input('Files containing extracted text already exist. Redo extraction (y|N):')
+        query=input('Files containing extracted text already exist. Redo extraction? (y|N):')
         if query.lower()=='y':
             doExtract=True
         else:
@@ -84,7 +84,7 @@ def main():
     
     print('Converting text to frequency vectors (this may take some time)...')
     dfTrainVec=pd.concat([dfTrain.iloc[:,0], txt2vecDF(dfTrain.iloc[:,1:],dictionary)],axis=1)
-    dfTestVec=pd.concat([Ytest, txt2vecDF(dfTest.iloc[:,1:],dictionary)],axis=1)
+    dfTestVec=pd.concat([dfTest.iloc[:,0], txt2vecDF(dfTest.iloc[:,1:],dictionary)],axis=1)
     
     print('saving frequency vectors')
     joblib.dump([dfTrainVec, dfTestVec],os.path.join(savDir,'traintest_vec.pkl'))
@@ -96,39 +96,54 @@ def main():
 
 # %%
 def loadMail2df(direc):
-    #direc = './Data/Ham/beck-s/'
+    import email, os, nltk, re
+    import pandas as pd
+    from preproc import readBody
+    
     cols=['sub','txt']
     df=pd.DataFrame(columns=cols)
-    for (dirpath, dirnames, filenames) in os.walk(direc):
-        for fname in filenames: # loop over files
-            fpath=os.path.join(dirpath, fname)
-            fid=open(fpath)
-            try:
-                emsg=email.message_from_file(fid)
-                readCorrectly=True
-            except:
-                readCorrectly=False
-            fid.close()
-            if readCorrectly:
-                dat={}
-                subDum=emsg['Subject']
-                if not subDum is None:
-                    subDum=subDum.lower() #make text lower case
-                    subDum=re.sub('-',' ',subDum) #change hyphens to spaces
-                    
-                    replaceList= ['\n'] #keep punctuation in for nltk.word_tokenize
-                    for replace in replaceList:
-                        subDum=re.sub(replace,'',subDum)
-                    subDum=nltk.word_tokenize(subDum)
-                    dat['sub']=subDum
-                else:
-                    dat['sub']=[' ']
-                txt=readBody(emsg)    
-                dat['txt']=txt
-                df=df.append(dat,ignore_index=True)
+    
+    if os.path.isdir(direc):
+        for (dirpath, dirnames, filenames) in os.walk(direc):
+            fpaths=[]
+            for fname in filenames: # loop over files
+                fpaths.append(os.path.join(dirpath, fname))
+    elif os.path.isfile(direc):
+        fpaths=[direc]
+    else:
+        raise IOError('Data file does not exist')
+            
+    for fpath in fpaths:    
+        fid=open(fpath)
+        try:
+            emsg=email.message_from_file(fid)
+            readCorrectly=True
+        except:
+            readCorrectly=False
+            raise ValueError('waaa')
+        fid.close()
+        if readCorrectly:
+            dat={}
+            subDum=emsg['Subject']
+            if not subDum is None:
+                subDum=subDum.lower() #make text lower case
+                subDum=re.sub('-',' ',subDum) #change hyphens to spaces
+                
+                replaceList= ['\n'] #keep punctuation in for nltk.word_tokenize
+                for replace in replaceList:
+                    subDum=re.sub(replace,'',subDum)
+                subDum=nltk.word_tokenize(subDum)
+                dat['sub']=subDum
+            else:
+                dat['sub']=[' ']
+            txt=readBody(emsg)    
+            dat['txt']=txt
+            df=df.append(dat,ignore_index=True)
     return df
 
 def readBody(emsg):
+    import re, nltk
+    
     if emsg.is_multipart():        
         txt=''
         for payload in emsg.get_payload(): # loop over parts of e-mail
@@ -143,7 +158,7 @@ def readBody(emsg):
     
     txt=re.sub('-',' ',txt) # change hyphens to spaces
     txt=re.sub('\n',' ',txt) # change newlines to spaces
-    txt=re.sub('[?!.,:;\'\"]',' ',txt) # change punctuation to spaces
+#    txt=re.sub('[?!.,:;\'\"]',' ',txt) # change punctuation to spaces
     
     #filter out html and other nuisance text
     # TODO maybe find a proper way to extract text from html (parse)
@@ -151,7 +166,7 @@ def readBody(emsg):
     for replace in replaceList:
         txt=re.sub(replace,'',txt)
     
-    txt=txt.split(' ')#nltk.word_tokenize(txt)
+    txt=nltk.word_tokenize(txt)
     for ix in range(len(txt),0,-1):
         word = txt[ix-1]
         if len(word)>45: # longest word in dictionary (see https://en.wikipedia.org/wiki/Longest_word_in_English)
@@ -164,6 +179,8 @@ def readBody(emsg):
 
 
 def genVocab(df, maxWords=1000):
+    import nltk
+    
     ndim=df.ndim
     dictionary=[]
     if isinstance(maxWords,int):
@@ -186,6 +203,8 @@ def genVocab(df, maxWords=1000):
 
                     
 def txt2vecDF(df,dictionary):
+    import pandas as pd
+    
     # convert extracted text to frequency vectors using dictionary
     ndim=df.ndim
     ndf=pd.DataFrame(None)
@@ -212,6 +231,6 @@ def txt2vecDF(df,dictionary):
     ndf=ndf.reset_index(drop=True)
     return ndf
 
-
-main()
+if __name__ == '__main__':
+    main()
                     

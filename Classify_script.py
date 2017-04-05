@@ -8,32 +8,38 @@ Created on Tue Apr  4 09:19:19 2017
 #import json
 import pandas as pd
 import numpy as np
+import os
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split, cross_val_predict
 from sklearn.metrics import confusion_matrix
-
+from sklearn.externals import joblib
 import matplotlib.pyplot as plt
 
 
 # %% read the data
-dfSpam=pd.read_json('./Data/Spam_Vec_more.json')
-dfHam=pd.read_json('./Data/Ham_Vec_more.json')
+savDir= input('Please input the Output directory (default=../output)\n:')
+if savDir=='':
+    savDir='../output/'
+    
+dfTrainVec, dfTestVec =joblib.load(os.path.join(savDir,'traintest_vec.pkl'))
+
+Y = dfTrainVec['spamFlag']
+Y_test = dfTestVec['spamFlag']   
+X = dfTrainVec.iloc[:,1:]
+X_test = dfTestVec.iloc[:,1:]
 
 
-X=pd.concat([dfSpam,dfHam])
-Y=np.concatenate((np.ones(len(dfSpam)), np.zeros(len(dfHam))))
-
-X,X_test, Y, Y_test = train_test_split(X,Y,test_size=0.1)
 # %% random forest classification
-
+figDir='../figs/'
 labs=X.columns
-n_est=[10,20,30,40,50,60,70,80,100,200,400,800]
+n_est=[10,20,30,40,50,60,70,80,100,200,500,1000]
 fig1=plt.figure(1)
 cnt=0
 perf=np.zeros(len(n_est))
 for n_trees in n_est:
     print('classifying using ' + str(n_trees) + ' trees')
-    forest = RandomForestClassifier(n_estimators=n_trees,criterion='gini',max_features = 'auto',oob_score=True, n_jobs=-1, verbose=False)
+    forest = RandomForestClassifier(n_estimators=n_trees,criterion='gini',max_features = 'auto',oob_score=True, n_jobs=-1, verbose=False, class_weight={1:.01,0:.99})
+    # notes: Correctly classifying Ham is 100x more important than Spam
     forest.fit(X,Y)
     
     perf[cnt]=forest.oob_score_
@@ -52,14 +58,14 @@ for n_trees in n_est:
     plt.title("Feature importances: " + str(n_trees) + ' trees')
     plt.bar(range(X.shape[1]), importances[indices], color="r", yerr=std[indices], align="center")
     plt.xticks(range(X.shape[1]), labs[indices], rotation='vertical')
-    plt.xlim([-1, 10])
+    plt.xlim([-.5, 10.5])
     plt.tight_layout
     cnt+=1
 plt.show(1)
+# %%
 
-fig4=plt.figure(4)
+fig4 = plt.figure(4)
 plt.subplot(1,2,1)
-plt.suptitle("Feature importances: " + str(n_trees) + ' trees')
 plt.bar(range(X.shape[1]), importances[indices], color="r", yerr=std[indices], align="center")
 plt.xticks(range(X.shape[1]), labs[indices], rotation='vertical')
 plt.xlim([-0.5, 15.5])
@@ -72,12 +78,15 @@ plt.xlim([0, 300])
 plt.ylim([0, 0.05])
 plt.tight_layout
 plt.show(fig4)
-fig4.set_size_inches(10,5)
+fig4.set_size_inches(11,8)
 plt.xlabel('feature')
-plt.savefig('./figs/Feat_importance.pdf')
+fig4.tight_layout()
+#plt.suptitle("Feature importances: " + str(n_trees) + ' trees')
+
+plt.savefig(os.path.join(figDir,'Feat_importance.pdf'))
     
 
-fig2=plt.figure(2)
+fig2 = plt.figure(2)
 plt.clf()
 plt.title('out of bag performance')
 plt.plot(n_est,perf)
@@ -85,10 +94,10 @@ plt.xlabel('Forest size')
 plt.ylabel('performance')
 plt.show(2)
 fig2.set_size_inches(10,5)
-plt.savefig('./figs/OOBperf_v_nTrees.pdf')
+plt.savefig(os.path.join(figDir,'OOBperf_v_nTrees.pdf'))
 
-from sklearn.externals import joblib
-joblib.dump(forest,'./models/forest.pkl')
+
+#joblib.dump(forest,'../models/forest.pkl')
 
 # to load
 #forest=joblib.load('./models/forest.pkl')
@@ -127,7 +136,7 @@ for CM,spi,perf in zip([cm,cmTest],range(2),performance):
             
 fig3.set_size_inches(10, 5)
 
-fig3.savefig('./figs/ConfusionMat_randFor.pdf')
+fig3.savefig(os.path.join(figDir,'ConfusionMat_randFor.pdf'))
 # %% naive bayes
 from sklearn.naive_bayes import MultinomialNB, BernoulliNB, GaussianNB
     
