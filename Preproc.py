@@ -2,85 +2,96 @@ import email, os, nltk, re, json
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
+from sklearn.externals import joblib
 from math import *
 
-spamdirec = './Data/Spam/'
-hamdirec = './Data/Ham/'
-
-# %% load data and preprocess to words
-#dfSpam=loadMail2df(spamdirec)
-#dfHam=loadMail2df(hamdirec)
-
-#dfSpam.to_json('./Data/Spam_txt_more.json')
-#dfHam.to_json('./Data/Ham_txt_more.json')
-
-
-## to load:
-dfSpam=pd.read_json('./Data/Spam_txt.json')
-dfHam=pd.read_json('./Data/Ham_txt.json')
-
-#split into train and test data after scrambling
-dfSpam=dfSpam.sample(frac=1).reset_index(drop=True)
-dfHam=dfHam.sample(frac=1).reset_index(drop=True)
-
-#splitRatio=10
-#dfHam_test=dfHam.iloc[:int(floor(len(dfHam)/splitRatio)),:]
-#dfHam=dfHam.iloc[int(floor(len(dfHam)/splitRatio)):,:]
-#
-#dfSpam_test=dfSpam.iloc[:int(floor(len(dfSpam)/splitRatio)),:]
-#dfSpam=Spam.iloc[int(floor(len(dfSpam)/splitRatio)):,:]
-
-dfTot=pd.concat([dfSpam,dfHam]).reset_index(drop=True)
-Y=np.concatenate((np.ones(len(dfSpam)), np.zeros(len(dfHam))))
-Y=pd.DataFrame(Y,index=range(len(dfTot)),columns=['spamFlag'])
-dfTot=pd.concat([Y,dfTot],axis=1)
-
-dfTrain, dfTest, Ytrain, Ytest = train_test_split(dfTot,Y,test_size=0.1)
-
-
-from sklearn.externals import joblib
-joblib.dump([dfTrain, dfTest, Ytrain, Ytest],'./Data/preproc/traintest_txt.pkl')
-
-#loading 
-dfTrain, dfTest, Ytrain, Ytest=joblib.load('./Data/preproc/traintest_txt.pkl')
-
-# %%
-nWords=[500,1000] #smaller dictionay for subject
-dictionary=genVocab(dfTrain.iloc[:,1:],nWords)
-
-with open('./Data/preproc/dictionary.json','w') as fp:
-    json.dump(dictionary, fp)
     
-## to load:
-#with open('./Data/dictionary.json','r') as fp:
-#    dictionary= json.load(fp)
 
 
-# %%
-#
-#import time
-#t= time.time()
-#dfSpamV=txt2vecDF(dfSpam,dictionary)
-#elapsed1 = time.time() - t
-#
-#
-#dfHamV=txt2vecDF(dfHam,dictionary)
-#elapsed2 = time.time() - t - elapsed1
+def main():
+        # %% load data and preprocess to words
+    savDir= input('Please input the Output directory (default=../output)\n:')
+    if savDir=='':
+        savDir='../output/'
+    
+    nWords=[input('how many words for the subject dictionary? (500)\n:')]
+    nWords.append(input('how many words for the body text dictionary? (1000)\n:'))
+    nWordsDefault=[500,1000] #smaller dictionay for subject    
+    for n in range(len(nWords)):
+        try:
+            nWords[n]=int(nWords[n])
+        except:
+            nWords[n]=nWordsDefault[n]
+    
+    
+    if os.path.isfile(os.path.join(savDir,'traintest_txt.pkl')):
+        query=input('Files containing extracted text already exist. Redo extraction (y|N):')
+        if query.lower()=='y':
+            doExtract=True
+        else:
+            doExtract=False
+            print('loading previously extracted text')        
+            #loading 
+            dfTrain, dfTest=joblib.load(os.path.join(savDir,'traintest_txt.pkl'))
+            
+    if doExtract:        
+        spamdirec = input('Please input the Spam directory (default=../Data/Spam)\n:')
+        if spamdirec=='':
+            spamdirec='../Data/Spam/'
+        
+        hamdirec = input('Please input the Spam directory (default=../Data/Ham)\n:')
+        if hamdirec=='':
+            hamdirec = '../Data/Ham/'                  
+        print('Importing emails...')
+        dfSpam=loadMail2df(spamdirec)
+        dfHam=loadMail2df(hamdirec)
+    
+        #dfSpam.to_json('./Data/Spam_txt_more.json')
+        #dfHam.to_json('./Data/Ham_txt_more.json')
+        
+        
+        ## to load:
+        #dfSpam=pd.read_json('./Data/Spam_txt.json')
+        #dfHam=pd.read_json('./Data/Ham_txt.json')
+        
+        #split into train and test data after scrambling
+        dfSpam=dfSpam.sample(frac=1).reset_index(drop=True)
+        dfHam=dfHam.sample(frac=1).reset_index(drop=True)
+        dfTot=pd.concat([dfSpam,dfHam]).reset_index(drop=True)
+        Y=np.concatenate((np.ones(len(dfSpam)), np.zeros(len(dfHam))))
+        Y=pd.DataFrame(Y,index=range(len(dfTot)),columns=['spamFlag'])
+        dfTot=pd.concat([Y,dfTot],axis=1)
+        
+        dfTrain, dfTest, Ytrain, Ytest = train_test_split(dfTot,Y,test_size=0.1)
+        
+        dfTrain=dfTrain.reset_index(drop=True)
+        dfTest=dfTest.reset_index(drop=True)
+        
+        print('saving extracted text')
+        # save extracted text
+        joblib.dump([dfTrain, dfTest],os.path.join(savDir,'traintest_txt.pkl'))
 
-## save
-#dfSpamV.to_json('./Data/Spam_Vec_more.json')
-#dfHamV.to_json('./Data/Ham_Vec_more.json')
-
-
-dfTrainVec=pd.concat([Ytrain, txt2vecDF(dfTrain.iloc[:,1:],dictionary)],axis=1)
-dfTestVec=pd.concat([Ytest, txt2vecDF(dfTest.iloc[:,1:],dictionary)],axis=1)
-
-
-joblib.dump([dfTrainVec, dfTestVec, Ytrain, Ytest],'./Data/preproc/traintest_vec.pkl')
-
-#loading
-dfTrainVec, dfTestVec, Ytrain, Ytest = joblib.load('./Data/preproc/traintest_vec.pkl')
-
+    print('Generating dictionaries')            
+    dictionary=genVocab(dfTrain.iloc[:,1:],nWords)
+    
+    print('saving dictionaries')
+    with open(os.path.join(savDir,'dictionary.json'),'w') as fp:
+        json.dump(dictionary, fp)
+        
+    ### to load: (for now just generate, it takes almost no time)
+    #with open('../Data/dictionary.json','r') as fp:
+    #    dictionary= json.load(fp)
+    
+    print('Converting text to frequency vectors (this may take some time)...')
+    dfTrainVec=pd.concat([dfTrain.iloc[:,0], txt2vecDF(dfTrain.iloc[:,1:],dictionary)],axis=1)
+    dfTestVec=pd.concat([Ytest, txt2vecDF(dfTest.iloc[:,1:],dictionary)],axis=1)
+    
+    print('saving frequency vectors')
+    joblib.dump([dfTrainVec, dfTestVec],os.path.join(savDir,'traintest_vec.pkl'))
+    
+#    #loading
+#    dfTrainVec, dfTestVec, Ytrain, Ytest = joblib.load('../Data/preproc/traintest_vec.pkl')
+    print('Done!')
 
 
 # %%
@@ -154,7 +165,7 @@ def readBody(emsg):
 
 def genVocab(df, maxWords=1000):
     ndim=df.ndim
-    word2index=[]
+    dictionary=[]
     if isinstance(maxWords,int):
         maxWords=[maxWords] * ndim
     for ix in range(ndim):
@@ -169,49 +180,29 @@ def genVocab(df, maxWords=1000):
         # extract 'maxWords' most common words
         vocab=wordFreq.most_common(N)
         index2word = [x[0] for x in vocab]
-        word2index.append( dict([(w,i) for i,w in enumerate(index2word)]))
+        dictionary.append( dict([(w,i) for i,w in enumerate(index2word)]))
         
-    return word2index
+    return dictionary
 
-def txt2vec(df,word2index):
-    ndim=df.ndim
-    ndf=df.copy()
-    for field in range(ndim):
-        for ix in range(len(df)):
-            txt=df.iloc[ix][field]
-#            print([ix, field])
-            if all(pd.isnull(txt)):
-                ndf.iloc[ix][field]=np.nan
-            else:
-                N=len(word2index[field])
-                nlist=np.zeros((N+2,1)) # one entry for all words in dictionary, one for unknown words, one for total number of words
-                for wrd in txt:
-                    if wrd in word2index[field]:
-                        nlist[word2index[field][wrd]]=nlist[word2index[field][wrd]]+1
-                    else:
-                        nlist[N]=nlist[N]+1 # unknown words get "unknown" value (=N+1)
-                nlist=nlist/len(txt)
-                nlist[N+1]=len(txt)
-                ndf.iloc[ix][field]=nlist
-    return ndf
                     
-def txt2vecDF(df,word2index):
+def txt2vecDF(df,dictionary):
+    # convert extracted text to frequency vectors using dictionary
     ndim=df.ndim
     ndf=pd.DataFrame(None)
     loopfields=range(ndim)
     collabs=df.columns
     for field in loopfields:
-        cols=[collabs[field] +' : ' + s for s in list(word2index[field].keys()) + ['_unknown','_txtLen']]
+        cols=[collabs[field] +' : ' + s for s in list(dictionary[field].keys()) + ['_unknown','_txtLen']]
         dumdf=pd.DataFrame(columns=cols)
         for txt in df.iloc[:,field]: # consider backwards looping over indices to pre-allocate memory for full DF
             if len(txt)<1: # fill with zeros
                 dumdf=dumdf.append(pd.DataFrame(0, index = [0],columns=cols))
             else:
-                Nbin=len(word2index[field])
+                Nbin=len(dictionary[field])
                 nlist=np.zeros((Nbin+2,1))
                 for wrd in txt:
-                    if wrd in word2index[field]:
-                        nlist[word2index[field][wrd]]=nlist[word2index[field][wrd]]+1
+                    if wrd in dictionary[field]:
+                        nlist[dictionary[field][wrd]]=nlist[dictionary[field][wrd]]+1
                     else:
                         nlist[Nbin]=nlist[Nbin]+1 # unknown words get "unknown" value (=N+1)
                 nlist=nlist/len(txt)
@@ -222,32 +213,5 @@ def txt2vecDF(df,word2index):
     return ndf
 
 
-    
-
-def txt2vecDF2(df,word2index):
-    ndim=df.ndim
-    ndf=pd.DataFrame(None)
-    for field in range(ndim):
-        cols=[str(field).zfill(3) +'_' + s for s in list(word2index[field].keys()) + ['_unknown','_txtLen']]
-        dumdf=pd.DataFrame(None,index = range(len(df)), columns=cols)
-        for ix in range(len(df),0,-1):
-            txt=df.iloc[ix-1][field]
-            if len(txt)<1: # fill with zeros
-                dumdf.loc[ix-1,:]=0
-            else:
-                Nbin=len(word2index[field])
-                nlist=np.zeros((Nbin+2,1))
-                for wrd in txt:
-                    if wrd in word2index[field]:
-                        nlist[word2index[field][wrd]]=nlist[word2index[field][wrd]]+1
-                    else:
-                        nlist[Nbin]=nlist[Nbin]+1 # unknown words get "unknown" value (=N+1)
-                nlist=nlist/len(txt)
-                nlist[Nbin+1]=len(txt)
-                dumdf.loc[ix-1,:]=nlist.transpose()
-        ndf=pd.concat([ndf,dumdf],axis=1)
-#    ndf=ndf.reset_index()
-    return ndf
-        
-        
+main()
                     
