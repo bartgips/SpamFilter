@@ -14,7 +14,9 @@ preproc.py: to preprocess training data
 
 train.py: to train a random forest using the preprocessed training data from preproc.py
 
-classify.py [path]: call this script to classify a new e-mail (all email files in 'path') with trained model fro
+classify.py [path]: call this script to classify a new e-mail ('path') with trained model from
 train.py (path to file can be used as argument to classify.py or be input to the consol when run without arguments)
+
+classify_multiple.py [path]: same as classify.py, but will work on a directory and will return the class labels for all e-mails in there.
 
 Other files are scripts for debugging and generation of supporting figures
