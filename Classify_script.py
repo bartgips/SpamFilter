@@ -5,6 +5,8 @@ Created on Tue Apr  4 09:19:19 2017
 
 @author: bart
 """
+# script to generate some of the figures used in the presentation
+
 #import json
 import pandas as pd
 import numpy as np
@@ -173,7 +175,7 @@ supVec.fit(X,Y)
 
 
 
-
+confusion_matrix(Y_test,supVec.predict(X_test))
 
 
 

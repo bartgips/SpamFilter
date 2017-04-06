@@ -11,6 +11,7 @@ import os, json
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.externals import joblib
 
+# loading necessary data:
 modelDir=input('model directory? (default=../output)\n:')
 modelfName=input('model file name? (default=mdl_RForest.pkl)\n:')
 
@@ -58,6 +59,7 @@ if trainModel:
     X=df.iloc[:,1:] # drop first column (=spamFlag)
     
     print('Fitting model...')
+    # training
     forest = RandomForestClassifier(400,criterion='gini',max_features = 'auto',oob_score=True, n_jobs=-1, verbose=False,)
     forest.fit(X,Y)
     

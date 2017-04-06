@@ -43,23 +43,18 @@ def main():
         if hamdirec=='':
             hamdirec = '../Data/Ham/'                  
         print('Importing emails...')
+        # load spam and ham into dataframes
         dfSpam=loadMail2df(spamdirec)
         dfHam=loadMail2df(hamdirec)
-    
-        #dfSpam.to_json('./Data/Spam_txt_more.json')
-        #dfHam.to_json('./Data/Ham_txt_more.json')
-        
-        
-        ## to load:
-        #dfSpam=pd.read_json('./Data/Spam_txt.json')
-        #dfHam=pd.read_json('./Data/Ham_txt.json')
-        
+            
         #split into train and test data after scrambling
-        dfSpam=dfSpam.sample(frac=1).reset_index(drop=True)
-        dfHam=dfHam.sample(frac=1).reset_index(drop=True)
+#        dfSpam=dfSpam.sample(frac=1).reset_index(drop=True)
+#        dfHam=dfHam.sample(frac=1).reset_index(drop=True)
         dfTot=pd.concat([dfSpam,dfHam]).reset_index(drop=True)
         Y=np.concatenate((np.ones(len(dfSpam)), np.zeros(len(dfHam))))
         Y=pd.DataFrame(Y,index=range(len(dfTot)),columns=['spamFlag'])
+        
+        # add class lables to first column
         dfTot=pd.concat([Y,dfTot],axis=1)
         
         dfTrain, dfTest, Ytrain, Ytest = train_test_split(dfTot,Y,test_size=0.1)
@@ -75,6 +70,7 @@ def main():
     dictionary=genVocab(dfTrain.iloc[:,1:],nWords)
     
     print('saving dictionaries')
+    # save dictionary for use later on (when classifying new samples after training)
     with open(os.path.join(savDir,'dictionary.json'),'w') as fp:
         json.dump(dictionary, fp)
         
@@ -90,12 +86,15 @@ def main():
     joblib.dump([dfTrainVec, dfTestVec],os.path.join(savDir,'traintest_vec.pkl'))
     
 #    #loading
-#    dfTrainVec, dfTestVec, Ytrain, Ytest = joblib.load('../Data/preproc/traintest_vec.pkl')
+#    dfTrainVec, dfTestVec = joblib.load('../Data/preproc/traintest_vec.pkl')
     print('Done!')
 
 
 # %%
 def loadMail2df(direc):
+    # function to load single e-mail or recursively run through a directory
+    # returns a dataframe that includes the subject and body text. The text 
+    # is split up into a list where every element is a word.
     import email, os, nltk, re
     import pandas as pd
     from preproc import readBody
@@ -142,6 +141,8 @@ def loadMail2df(direc):
     return df
 
 def readBody(emsg):
+    # helper function
+    # returns body text from email object
     import re, nltk
     
     if emsg.is_multipart():        
@@ -179,6 +180,8 @@ def readBody(emsg):
 
 
 def genVocab(df, maxWords=1000):
+    # function that generates dictionary/vocabulary of size 'maxWords' for 
+    # every column in df.
     import nltk
     
     ndim=df.ndim
@@ -203,6 +206,8 @@ def genVocab(df, maxWords=1000):
 
                     
 def txt2vecDF(df,dictionary):
+    # converts parsed texts into word frequency vectors using the vocabulary in
+    # 'dictionary'.
     import pandas as pd
     
     # convert extracted text to frequency vectors using dictionary
@@ -224,8 +229,8 @@ def txt2vecDF(df,dictionary):
                         nlist[dictionary[field][wrd]]=nlist[dictionary[field][wrd]]+1
                     else:
                         nlist[Nbin]=nlist[Nbin]+1 # unknown words get "unknown" value (=N+1)
-                nlist=nlist/len(txt)
-                nlist[Nbin+1]=len(txt)
+                nlist=nlist/len(txt) # normalize to give frequencies
+                nlist[Nbin+1]=len(txt) # final feature is _txtLen (i.e. number of words)
                 dumdf=dumdf.append(pd.DataFrame(nlist.transpose(),index=[0],columns=cols))
         ndf=pd.concat([ndf,dumdf],axis=1)
     ndf=ndf.reset_index(drop=True)

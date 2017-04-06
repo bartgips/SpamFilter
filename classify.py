@@ -15,6 +15,7 @@ from sklearn.externals import joblib
 
 # %%
 print('Loading model in ../output/mdl_RForest.pkl')
+# hardcoded, to make it easier to use after training (directly callable from CLI)
 [forest,dictionary]=joblib.load('../output/mdl_RForest.pkl')
 
 try:
