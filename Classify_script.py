@@ -38,8 +38,7 @@ cnt=0
 perf=np.zeros(len(n_est))
 for n_trees in n_est:
     print('classifying using ' + str(n_trees) + ' trees')
-    forest = RandomForestClassifier(n_estimators=n_trees,criterion='gini',max_features = 'auto',oob_score=True, n_jobs=-1, verbose=False, class_weight={1:.01,0:.99})
-    # notes: Correctly classifying Ham is 100x more important than Spam
+    forest = RandomForestClassifier(n_estimators=n_trees,criterion='gini',max_features = 'auto',oob_score=True, n_jobs=-1, verbose=False)
     forest.fit(X,Y)
     
     perf[cnt]=forest.oob_score_
@@ -140,7 +139,7 @@ fig3.savefig(os.path.join(figDir,'ConfusionMat_randFor.pdf'))
 # %% naive bayes
 from sklearn.naive_bayes import MultinomialNB, BernoulliNB, GaussianNB
     
-alist=np.linspace(0,2,11)
+alist=np.linspace(-2,3,21)
 accMNB=[]
 accBNB=[]
 for alph in alist:
@@ -151,17 +150,26 @@ for alph in alist:
     BNBmodel=BernoulliNB(alpha=10**alph)
     BNBpredict=cross_val_predict(BNBmodel,X,Y,n_jobs=-1,cv=5)
     accBNB.append(1-np.mean(abs(BNBpredict-Y)))
-    
+
+GNBmodel=GaussianNB()
+GNBpredict=cross_val_predict(GNBmodel,X,Y,n_jobs=-1,cv=5)
+accGNB=1-np.mean(abs(GNBpredict-Y))
 
 fig10=plt.figure(10)
-plt.plot(alist,accMNB,alist,accBNB)
+fig10.clf
+plt.plot(alist,accMNB,alist,accBNB,alist,[accGNB]*len(alist))
+plt.ylabel('performance')
+plt.xlabel('smoothing prior (alpha) (log10)')
+plt.legend(['Multinomial','Bernoulli','Gaussian'])
+
+fig10.savefig(os.path.join(figDir,'NaiveBayes2.pdf'))
 
 
+# %% svm
+from sklearn import svm
 
-
-
-
-
+supVec=svm.SVC()
+supVec.fit(X,Y)
 
 
 

@@ -58,8 +58,7 @@ if trainModel:
     X=df.iloc[:,1:] # drop first column (=spamFlag)
     
     print('Fitting model...')
-    forest = RandomForestClassifier(1000,criterion='gini',max_features = 'auto',oob_score=True, n_jobs=-1, verbose=False, class_weight={1:.01,0:.99})
-    # notes: Correctly classifying Ham is 100x more important than Spam
+    forest = RandomForestClassifier(400,criterion='gini',max_features = 'auto',oob_score=True, n_jobs=-1, verbose=False,)
     forest.fit(X,Y)
     
     print('Saving model to disk (' + os.path.join(modelDir,modelfName) + ')')
